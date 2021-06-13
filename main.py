@@ -3,69 +3,106 @@ import sys
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
 
-# Just rewrite the whole thing and think more about how to make stuff work.
 
-def decompose_path(path: str) -> [list, list]:
-    components = path.split("/")
-    f = components.pop()
-    d = components
-    return [d, f]
+class Settings:
+    def __init__(self) -> None:
+        pass
 
-def create_directories(directories: list) -> bool:
-    path = "dls/"
-    for i in range(len(directories)):
-        path += directories.pop()
-        try:
-            os.mkdir(path)
-        except OSError as e:
-            print(e)
-            return False
+    def __repr__(self) -> str:
+        return str(self.__dict__)
 
-    return True
+    def __str__(self) -> str:
+        return str(self.__dict__)
 
-# TODO Actually put some validation on this
-url = sys.argv[1]
+    def parse_clargs(self, clargs: list) -> None:
+        # Handle CSS settings
+        if "-c" in clargs:
+            clargs.remove("-c")
+            settings.css = True
+        else:
+            settings.css = False
 
-url_hash = str(hash(url))
-try:
-    os.mkdir("dls/" + url_hash)
-except OSError as e:
-    print(e)
+        # Handle image settings
+        if "-i" in clargs:
+            clargs.remove("-i")
+            settings.images = True
+        else:
+            settings.images = False
 
-html = urlopen(url).read().decode()
-soup = BeautifulSoup(html, "html.parser")
-link_tags = soup.find_all("link")
-img_tags = soup.find_all("img")
+        # Handle opening browser after download
+        if "-o" in clargs:
+            clargs.remove("-o")
+            settings.open = True
+        else:
+            settings.open = False
 
-html_file = open("dls/" + url_hash + "/index.html", "w")
-html_file.write(html)
-html_file.close()
+        # Handle setting custom directory to save webpage to
+        if "-d" in clargs:
+            index = clargs.index("-d")
+            directory = clargs[index + 1]
+            clargs.remove(index)
+            clargs.remove(arg)
+            settings.directory = arg
+        else:
+            settings.directory = "dls/"
 
-# Get all CSS files
-for i, link in enumerate(link_tags):
-    if link.attrs["rel"] == ["stylesheet"]:
-        sub_url = link.attrs["href"]
-        file_dir = "dls/" + url_hash
-        full_url = url + "/" + sub_url
-        raw_css = urlopen(full_url).read().decode() 
+        if len(clargs) > 1:
+            raise Exception("Unexpected command line argument. \n" + str(settings))
+        else:
+            self.url = clargs[0]
 
-        current_css = open(file_dir + "/" + sub_url, "w")
-        current_css.write(raw_css)
-        current_css.close()
+class Webdler:
+    def __init__(self, settings: Settings):
+        self.settings = settings
+        pass
 
-# Get all images
-for i, image in enumerate(img_tags):
-    sub_url = image.attrs["src"]
-    file_dir = "dls/" + url_hash
-    full_url = url + "/" + sub_url
-    image = urlopen(full_url).read()
+    def clean_url(self, url: str) -> str:
+        pass
 
-    directories, file_name = decompose_path(file_dir)
-    create_directories(directories)
+    def hash_url(self, url: str) -> str:
+        pass
 
-    current_image = open(file_dir + "/" + sub_url, "w")
-    current_image.write(image)
-    current_image.close()
-    pass
+    def get_url(self, url: str) -> str:
+        return urllopen(url).read().decode()
 
-print("Data stored in dls/" + url_hash)
+    def create_directory(self, directory: str) -> None:
+        pass
+
+    def run(self) -> bool, str:
+        print(settings)
+        # Clean and hash URL
+        cleaned_url = self.clean_url(settings.url)
+        hashed_url = self.hash_url(cleaned_url)
+
+        # Get data
+        data = self.get_url(cleaned_url)
+
+        # Create directories
+        self.create_directory(hashed_url)
+        # url_hash
+
+        # Get webpage
+        webpage = self.get_url(cleaned_url)
+
+        if settings.css:
+            # Create CSS directory
+            self.create_directory(hashed_url + "/css")
+            # Get all stylesheets and save them to url_hash/css
+
+        if settings.images:
+            # Create images directory
+            self.create_directory(hashed_url + "/images")
+            # Get all images and save them to url_has/images
+
+        return True, hashed_url
+
+if __name__ == "__main__":
+    # Handle command line input
+    settings = Settings()
+    settings.parse_clargs(sys.argv)
+
+    webdler = Webdler(settings)
+    success, directory = webdler.run()
+
+    if success:
+        print("Data downloaded to " + settings.url + "/" + directory)
